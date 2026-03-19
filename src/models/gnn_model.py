@@ -1,4 +1,4 @@
-# GNN Model for dsRNA Efficacy Prediction
+# Improved GNN Model with Dropout
 # AI4S Lab - Sazzad Hossain
 
 import torch
@@ -8,33 +8,47 @@ from torch_geometric.nn import GATConv, global_mean_pool
 class dsRNAPredictor(nn.Module):
     def __init__(self):
         super().__init__()
-        
-        # Layer 1: node features প্রসেস করো
+
+        # Layer 1
         self.conv1 = GATConv(8, 64, heads=4, concat=False)
-        
-        # Layer 2: আরো গভীরে শেখো
+        self.bn1 = nn.BatchNorm1d(64)
+
+        # Layer 2
         self.conv2 = GATConv(64, 64, heads=4, concat=False)
-        
-        # Final prediction
+        self.bn2 = nn.BatchNorm1d(64)
+
+        # Layer 3 (নতুন)
+        self.conv3 = GATConv(64, 32, heads=4, concat=False)
+        self.bn3 = nn.BatchNorm1d(32)
+
+        # Dropout - overfitting রোধ করে
+        self.dropout = nn.Dropout(p=0.3)
+
+        # Prediction
         self.predictor = nn.Sequential(
-            nn.Linear(64, 32),
+            nn.Linear(32, 16),
             nn.ReLU(),
-            nn.Linear(32, 1)
+            nn.Dropout(p=0.2),
+            nn.Linear(16, 1)
         )
-    
+
     def forward(self, data):
         x = data.x
         edge_index = data.edge_index
         batch = data.batch
-        
-        # Message passing
+
         x = self.conv1(x, edge_index).relu()
+        x = self.bn1(x)
+        x = self.dropout(x)
+
         x = self.conv2(x, edge_index).relu()
-        
-        # Graph level representation
+        x = self.bn2(x)
+        x = self.dropout(x)
+
+        x = self.conv3(x, edge_index).relu()
+        x = self.bn3(x)
+
         x = global_mean_pool(x, batch)
-        
-        # Prediction
         out = self.predictor(x)
         return out
 
