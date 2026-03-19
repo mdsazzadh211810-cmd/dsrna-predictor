@@ -1,4 +1,4 @@
-# Model Training
+# Improved Training Pipeline
 # AI4S Lab - Sazzad Hossain
 
 import sys
@@ -10,31 +10,38 @@ from torch_geometric.loader import DataLoader
 from dataset import load_dataset
 from gnn_model import dsRNAPredictor
 
-# Step 1: Data load করো
+# Step 1: Data load
 graphs = load_dataset("data/raw/sirna_data.csv")
 
-# Step 2: Train/Test split করো
-train_graphs = graphs[:8]
-test_graphs = graphs[8:]
+# Step 2: Train/Val/Test split (70/15/15)
+n = len(graphs)
+train_graphs = graphs[:28]
+val_graphs = graphs[28:34]
+test_graphs = graphs[34:]
 
-# Step 3: DataLoader তৈরি করো
-train_loader = DataLoader(train_graphs, batch_size=4, shuffle=True)
-test_loader = DataLoader(test_graphs, batch_size=2)
+print(f"\nTrain: {len(train_graphs)}")
+print(f"Val:   {len(val_graphs)}")
+print(f"Test:  {len(test_graphs)}")
 
-# Step 4: Model তৈরি করো
+# Step 3: DataLoader
+train_loader = DataLoader(train_graphs, batch_size=8, shuffle=True)
+val_loader = DataLoader(val_graphs, batch_size=4)
+test_loader = DataLoader(test_graphs, batch_size=4)
+
+# Step 4: Model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Device: {device}")
-
 model = dsRNAPredictor().to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 criterion = torch.nn.MSELoss()
 
-# Step 5: Training loop
-print("\nTraining just started...")
-for epoch in range(1, 51):
+# Step 5: Training
+print("\nTraining started...")
+best_val_loss = float('inf')
+
+for epoch in range(1, 101):
+    # Train
     model.train()
-    total_loss = 0
-    
+    train_loss = 0
     for batch in train_loader:
         batch = batch.to(device)
         optimizer.zero_grad()
@@ -42,18 +49,32 @@ for epoch in range(1, 51):
         loss = criterion(pred, batch.y.view(-1, 1))
         loss.backward()
         optimizer.step()
-        total_loss += loss.item()
-    
-    if epoch % 10 == 0:
-        print(f"Epoch {epoch}/50 | Loss: {total_loss:.4f}")
+        train_loss += loss.item()
 
-print("\nTraining finished!")
+    # Validation
+    model.eval()
+    val_loss = 0
+    with torch.no_grad():
+        for batch in val_loader:
+            batch = batch.to(device)
+            pred = model(batch)
+            val_loss += criterion(pred, batch.y.view(-1, 1)).item()
 
-# Step 6: Test করো
+    if epoch % 20 == 0:
+        print(f"Epoch {epoch}/100 | Train: {train_loss:.2f} | Val: {val_loss:.2f}")
+
+    # Best model save
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        torch.save(model.state_dict(), 'best_model.pt')
+
+# Step 6: Test
+print("\nTest Results:")
+model.load_state_dict(torch.load('best_model.pt', weights_only=True))
 model.eval()
 with torch.no_grad():
     for batch in test_loader:
         batch = batch.to(device)
         pred = model(batch)
-        print(f"\nPredicted: {pred.squeeze().tolist()}")
-        print(f"Actual:    {batch.y.tolist()}")
+        for p, a in zip(pred.squeeze().tolist(), batch.y.tolist()):
+            print(f"  Predicted: {p:.1f}% | Actual: {a:.1f}%")
