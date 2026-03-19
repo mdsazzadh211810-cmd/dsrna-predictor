@@ -38,8 +38,7 @@ criterion = torch.nn.MSELoss()
 print("\nTraining started...")
 best_val_loss = float('inf')
 
-for epoch in range(1, 101):
-    # Train
+for epoch in range(1, 301):    # Train
     model.train()
     train_loss = 0
     for batch in train_loader:
@@ -60,7 +59,7 @@ for epoch in range(1, 101):
             pred = model(batch)
             val_loss += criterion(pred, batch.y.view(-1, 1)).item()
 
-    if epoch % 20 == 0:
+    if epoch % 50 == 0:
         print(f"Epoch {epoch}/100 | Train: {train_loss:.2f} | Val: {val_loss:.2f}")
 
     # Best model save
