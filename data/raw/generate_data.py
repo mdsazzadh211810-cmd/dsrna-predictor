@@ -1,5 +1,5 @@
-# Real siRNA Dataset Generator
-# Source: Huesken et al. 2005 + Ui-Tei et al. 2004
+# Large siRNA Dataset Generator
+# Based on Huesken 2005 design rules
 # AI4S Lab - Sazzad Hossain
 
 import pandas as pd
@@ -7,62 +7,65 @@ import random
 
 random.seed(42)
 
-# Real siRNA sequences with experimentally validated knockdown %
-data = [
-    # High efficiency (>80%)
-    ("AAGCUAACCCUGCUUCUGGUU", 92.3),
-    ("AAGAUCAAGUGCUCAGAGAUU", 87.5),
-    ("AAGUUCAGCUGGCCUGAGAUU", 95.1),
-    ("AACUGAAGCCAUGUUCUCCUU", 82.4),
-    ("AAGGGCUAUGAAAGAACUGUU", 88.9),
-    ("AACAGUGCUGGAGCCAUGAUU", 91.2),
-    ("AAGUCAACAUGCUGAGCAAUU", 86.7),
-    ("AACUGGAGCCAUGUUCUCCUU", 93.4),
-    ("AAGCAGCUGGCCUGAGAUAUU", 84.5),
-    ("AAGUUCAGCUGGCCUGAGAUU", 90.8),
-    ("AACUGAAGCCAUGUUCUCCUU", 89.3),
-    ("AAGGGCUAUGAAAGAACUGUU", 85.6),
-    ("AACAGUGCUGGAGCCAUGAUU", 94.2),
-    ("AAGUCAACAUGCUGAGCAAUU", 87.1),
-    ("AACUGGAGCCAUGUUCUCCUU", 91.7),
-    # Medium efficiency (50-80%)
-    ("AAGGAUGAGAAAGCUGUCAUU", 78.2),
-    ("AACUGAAGCCAUGUUCUCCUU", 71.4),
-    ("AACAGCAAGAUGACAGAGAUU", 65.2),
-    ("AAGCAGAAGAUGACAGAGAUU", 58.7),
-    ("AAGGAUGAGAAAGCUGUCAUU", 75.3),
-    ("AACUGAAGCCAUGUUCUCCUU", 68.9),
-    ("AACAGCAAGAUGACAGAGAUU", 72.4),
-    ("AAGCAGAAGAUGACAGAGAUU", 61.3),
-    ("AAGUUCAGCUGGCCUGAGAUU", 76.8),
-    ("AACUGAAGCCAUGUUCUCCUU", 55.4),
-    ("AAGGGCUAUGAAAGAACUGUU", 63.7),
-    ("AACAGUGCUGGAGCCAUGAUU", 69.8),
-    ("AAGUCAACAUGCUGAGCAAUU", 74.2),
-    ("AACUGGAGCCAUGUUCUCCUU", 57.6),
-    ("AAGCAGCUGGCCUGAGAUAUU", 66.3),
-    # Low efficiency (<50%)
-    ("AACAGCAAGAUGACAGAGAUU", 45.2),
-    ("AAGCAGAAGAUGACAGAGAUU", 38.7),
-    ("AAGGAUGAGAAAGCUGUCAUU", 42.1),
-    ("AACUGAAGCCAUGUUCUCCUU", 35.8),
-    ("AACAGCAAGAUGACAGAGAUU", 28.4),
-    ("AAGCAGAAGAUGACAGAGAUU", 31.9),
-    ("AAGGAUGAGAAAGCUGUCAUU", 44.7),
-    ("AACUGAAGCCAUGUUCUCCUU", 22.3),
-    ("AACAGCAAGAUGACAGAGAUU", 48.6),
-    ("AAGCAGAAGAUGACAGAGAUU", 15.2),
-]
+def gc_content(seq):
+    return (seq.count('G') + seq.count('C')) / len(seq)
 
-# Create DataFrame
-df = pd.DataFrame(data, columns=['sequence', 'knockdown_efficiency'])
+def calculate_efficiency(seq):
+    """
+    Huesken 2005 rules:
+    1. GC content 30-52% = high efficiency
+    2. A at position 19 = good
+    3. U at position 1 = good
+    4. No 4+ consecutive same nucleotide
+    """
+    score = 50.0
+
+    # Rule 1: GC content
+    gc = gc_content(seq)
+    if 0.30 <= gc <= 0.52:
+        score += 20
+    elif gc < 0.25 or gc > 0.65:
+        score -= 25
+
+    # Rule 2: Position 19 = A
+    if len(seq) >= 19 and seq[18] == 'A':
+        score += 10
+
+    # Rule 3: Position 1 = U or A
+    if seq[0] in ['U', 'A']:
+        score += 8
+
+    # Rule 4: No 4+ same nucleotide
+    for nuc in ['A', 'U', 'G', 'C']:
+        if nuc * 4 in seq:
+            score -= 20
+
+    # Add biological noise
+    noise = random.uniform(-8, 8)
+    score += noise
+
+    return max(5.0, min(98.0, score))
+
+# Generate diverse sequences
+nucleotides = ['A', 'U', 'G', 'C']
+
+data = []
+for i in range(200):
+    # Random 21-mer siRNA
+    seq = ''.join(random.choices(nucleotides, k=19))
+    seq = seq + 'UU'  # siRNA always ends in UU
+
+    efficiency = calculate_efficiency(seq)
+    data.append((seq, round(efficiency, 1)))
 
 # Save
+df = pd.DataFrame(data, columns=['sequence', 'knockdown_efficiency'])
 df.to_csv('data/raw/sirna_data.csv', index=False)
 
 print(f"Total data: {len(df)} sequences")
 print(f"\nDistribution:")
-print(f"  High (>80%):   {len(df[df.knockdown_efficiency > 80])} sequences")
-print(f"  Medium (50-80%): {len(df[(df.knockdown_efficiency >= 50) & (df.knockdown_efficiency <= 80)])} sequences")
-print(f"  Low (<50%):    {len(df[df.knockdown_efficiency < 50])} sequences")
-print(f"\nSaved to data/raw/sirna_data.csv")
+print(f"  High (>70%):   {len(df[df.knockdown_efficiency > 70])}")
+print(f"  Medium (40-70%): {len(df[(df.knockdown_efficiency >= 40) & (df.knockdown_efficiency <= 70)])}")
+print(f"  Low (<40%):    {len(df[df.knockdown_efficiency < 40])}")
+print(f"\nSample data:")
+print(df.head(5))

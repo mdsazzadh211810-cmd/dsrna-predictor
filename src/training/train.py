@@ -15,9 +15,9 @@ graphs = load_dataset("data/raw/sirna_data.csv")
 
 # Step 2: Train/Val/Test split (70/15/15)
 n = len(graphs)
-train_graphs = graphs[:28]
-val_graphs = graphs[28:34]
-test_graphs = graphs[34:]
+train_graphs = graphs[:160]
+val_graphs = graphs[160:180]
+test_graphs = graphs[180:]
 
 print(f"\nTrain: {len(train_graphs)}")
 print(f"Val:   {len(val_graphs)}")
