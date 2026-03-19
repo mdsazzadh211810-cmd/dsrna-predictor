@@ -50,7 +50,7 @@ def calculate_efficiency(seq):
 nucleotides = ['A', 'U', 'G', 'C']
 
 data = []
-for i in range(200):
+for i in range(500):
     # Random 21-mer siRNA
     seq = ''.join(random.choices(nucleotides, k=19))
     seq = seq + 'UU'  # siRNA always ends in UU
