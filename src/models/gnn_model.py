@@ -10,7 +10,7 @@ class dsRNAPredictor(nn.Module):
         super().__init__()
 
         # Layer 1
-        self.conv1 = GATConv(8, 64, heads=4, concat=False)
+        self.conv1 = GATConv(12, 64, heads=4, concat=False)
         self.bn1 = nn.BatchNorm1d(64)
 
         # Layer 2
